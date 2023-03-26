@@ -19,6 +19,8 @@ class FileSharerServer {
 
   rooms: { [props: string]: { userCount: number; fileInfo: { name: string; type: string; size: number } } };
 
+  private readonly PORT = process.env.PORT || 3005;
+
   constructor() {
     this.rooms = {};
     this.httpServer = http.createServer(app);
@@ -89,8 +91,8 @@ class FileSharerServer {
   }
 
   run() {
-    this.httpServer.listen(3005, () => {
-      console.log(`Server is running at http://localhost:3005/`);
+    this.httpServer.listen(this.PORT, () => {
+      console.log(`Server is running at PORT:`, this.PORT);
     });
   }
 }

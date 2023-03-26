@@ -2,11 +2,10 @@
   "name": "filesharer",
   "version": "1.0.0",
   "description": "",
-  "main": "index.js",
   "scripts": {
     "devStart": "nodemon index.ts",
     "build": "tsc --project .",
-    "start": "node ."
+    "start": "node src/index.js"
   },
   "keywords": [],
   "author": "",
