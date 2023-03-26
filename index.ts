@@ -39,6 +39,7 @@ class FileSharerServer {
 
     app.post("/isValidRoom", (req: any, res: any) => {
       const { roomId } = req.body;
+      console.log("roomValidationCheck: ", roomId, " ", this.rooms);
       res.json({ status: roomId in this.rooms, fileInfo: this.rooms[roomId]?.fileInfo ?? {} });
     });
   }
