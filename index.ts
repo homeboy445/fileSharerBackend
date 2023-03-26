@@ -5,7 +5,6 @@ const app = express();
 const cors = require('cors');
 const http = require("http");
 const path = require("path");
-const ip = require('ip');
 
 app.use(cors());
 app.use(express.urlencoded());
@@ -61,15 +60,26 @@ class FileSharerServer {
         }
         this.rooms[data.id].userCount += 1;
         socket.join(data.id);
-        socket.to(data.id).emit(data.id + ":users", { userCount: this.rooms[data.id].userCount });
+        socket.to(data.id).emit(data.id + ":users", { userCount: this.rooms[data.id].userCount, userId: data.userId });
+      });
+      socket.on("testing", (data) => {
+        console.log("Percentage: ", data);
+        // socket.to(data.roomId).emit("filePercentage", data.percentage);
       });
       socket.on("sendFile", (fileData) => { // send this too { roomId };
-        console.log("Send File: ", fileData);
+        // console.log("Send File: ", fileData);
         socket.to(fileData.roomId).emit("recieveFile", fileData);
       });
+      socket.on('acknowledge', (data) => {
+        console.log('acknowledged: ', data);
+        const { roomId } = data;
+        delete data.roomId;
+        socket.to(roomId).emit("packet-acknowledged", data);
+      })
       socket.on('deleteRoom', ({ roomId }) => {
-        console.log("Deleting room: ", roomId);
+        // console.log("Deleting room: ", roomId);
         socket.to(roomId).emit("roomInvalidated", true);
+        socket.leave(roomId);
       });
       socket.on("disconnect", () => {
         console.log("User disconnected!");
