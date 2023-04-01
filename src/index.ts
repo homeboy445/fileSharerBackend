@@ -71,7 +71,7 @@ class FileSharerServer {
         socket.to(data.id).emit(data.id + ":users", { userCount: this.rooms[data.id].userCount, userId: data.userId });
       });
       socket.on("sendFile", (fileData) => { // send this too { roomId };
-        // console.log("Send File: ", fileData);
+        console.log("Send File: ", fileData);
         socket.to(fileData.roomId).emit("recieveFile", fileData);
       });
       socket.on('acknowledge', (data) => {
