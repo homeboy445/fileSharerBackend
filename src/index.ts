@@ -19,6 +19,8 @@ class FileSharerServer {
 
   rooms: { [props: string]: { userCount: number; fileInfo: { name: string; type: string; size: number } } };
 
+  private readonly ALLOWED_CONCURRENT_CONNECTIONS = 3;
+
   private readonly PORT = process.env.PORT || 3005;
 
   constructor() {
@@ -42,7 +44,7 @@ class FileSharerServer {
     app.post("/isValidRoom", (req: any, res: any) => {
       const { roomId } = req.body;
       console.log("roomValidationCheck: ", roomId, " ", this.rooms);
-      res.json({ status: roomId in this.rooms, fileInfo: this.rooms[roomId]?.fileInfo ?? {} });
+      res.json({ status: (roomId in this.rooms), fileInfo: this.rooms[roomId]?.fileInfo ?? {} });
     });
   }
 
@@ -54,20 +56,19 @@ class FileSharerServer {
         if (!data.id) return console.log("Something went wrong while creating room!");
         this.rooms[data.id] = { userCount: 0, fileInfo: { ...data.fileInfo } };
         socket.join(data.id);
-      }); // TODO: Create a concept of assigning a Uid to each user;
+      });
       socket.on('join-room', (data) => {
         console.log("Join Room: ", data);
         if (!data.id) return console.log("Something went wrong while joining a room!");
         if (!this.rooms[data.id]) {
           return console.error('the room does not exist!');
         }
+        if (this.rooms[data.id].userCount == this.ALLOWED_CONCURRENT_CONNECTIONS) {
+          return socket.emit("roomFull:" + data.userId, true);
+        }
         this.rooms[data.id].userCount += 1;
         socket.join(data.id);
         socket.to(data.id).emit(data.id + ":users", { userCount: this.rooms[data.id].userCount, userId: data.userId });
-      });
-      socket.on("testing", (data) => {
-        console.log("Percentage: ", data);
-        // socket.to(data.roomId).emit("filePercentage", data.percentage);
       });
       socket.on("sendFile", (fileData) => { // send this too { roomId };
         // console.log("Send File: ", fileData);
@@ -78,11 +79,12 @@ class FileSharerServer {
         const { roomId } = data;
         delete data.roomId;
         socket.to(roomId).emit("packet-acknowledged", data);
-      })
+      });
       socket.on('deleteRoom', ({ roomId }) => {
-        // console.log("Deleting room: ", roomId);
+        console.log("Deleting room: ", roomId);
         socket.to(roomId).emit("roomInvalidated", true);
         socket.leave(roomId);
+        delete this.rooms[roomId];
       });
       socket.on("disconnect", () => {
         console.log("User disconnected!");
