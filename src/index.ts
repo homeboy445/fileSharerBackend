@@ -17,9 +17,11 @@ class FileSharerServer {
 
   socketIO: Server;
 
-  rooms: { [props: string]: { userCount: number; fileInfo: { name: string; type: string; size: number } } };
+  rooms: { [props: string]: { userCount: number; fileInfo: { name: string; type: string; size: number }; creationDate: number } };
 
   private readonly ALLOWED_CONCURRENT_CONNECTIONS = 3;
+
+  private readonly CLEAN_UP_DURATION = 1;
 
   private readonly PORT = process.env.PORT || 3005;
 
@@ -50,11 +52,11 @@ class FileSharerServer {
 
   connectSocket() {
     this.socketIO.on("connect", (socket) => {
-      console.log("User connected!");
+      console.log("User connected: ", socket.id);
       socket.on('create-room', (data) => {
         console.log('Create Room: ', data);
         if (!data.id) return console.log("Something went wrong while creating room!");
-        this.rooms[data.id] = { userCount: 0, fileInfo: { ...data.fileInfo } };
+        this.rooms[data.id] = { userCount: 0, fileInfo: { ...data.fileInfo }, creationDate: Date.now() };
         socket.join(data.id);
       });
       socket.on('join-room', (data) => {
@@ -71,7 +73,7 @@ class FileSharerServer {
         socket.to(data.id).emit(data.id + ":users", { userCount: this.rooms[data.id].userCount, userId: data.userId });
       });
       socket.on("sendFile", (fileData) => { // send this too { roomId };
-        console.log("Send File: ", fileData);
+        // console.log("Send File: ", fileData);
         socket.to(fileData.roomId).emit("recieveFile", fileData);
       });
       socket.on('acknowledge', (data) => {
@@ -87,7 +89,7 @@ class FileSharerServer {
         delete this.rooms[roomId];
       });
       socket.on("disconnect", () => {
-        console.log("User disconnected!");
+        console.log("User disconnected: ", socket.id);
       });
     });
   }
