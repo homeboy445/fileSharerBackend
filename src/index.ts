@@ -59,25 +59,26 @@ class FileSharerServer {
     this.roomCleanerInterval = null;
     this.registerRoutes();
     this.connectSocket();
-    this.initateRoomCleanUpLoop();
+    // this.initateRoomCleanUpLoop();
   }
 
-  private initateRoomCleanUpLoop() {
-    console.log("Initiating the room cleanUp loop!");
-    this.roomCleanerInterval = setInterval(() => {
-      console.log("Executed the room cleanUp loop!");
-      const roomIds = Object.keys(this.rooms);
-      if (roomIds.length === 0) {
-        clearInterval((this.roomCleanerInterval as NodeJS.Timer));
-        console.log("Halting the room cleanUp loop due to absence of any room!");
-        this.roomCleanerInterval = null;
-      }
-      roomIds.forEach((roomId: string) => {
-        if (Math.round((Date.now() - this.rooms[roomId].creationTime) / 1000 * 60) >= 30) {
-          delete this.rooms[roomId];
-        }
-      });
-    }, this.CLEAN_UP_DURATION);
+  private initateRoomCleanUpLoop() { // Ideally, this shouldn't be used!
+    return;
+    // console.log("Initiating the room cleanUp loop!");
+    // this.roomCleanerInterval = setInterval(() => {
+    //   console.log("Executed the room cleanUp loop!");
+    //   const roomIds = Object.keys(this.rooms);
+    //   if (roomIds.length === 0) {
+    //     clearInterval((this.roomCleanerInterval as NodeJS.Timer));
+    //     console.log("Halting the room cleanUp loop due to absence of any room!");
+    //     this.roomCleanerInterval = null;
+    //   }
+    //   roomIds.forEach((roomId: string) => {
+    //     if (Math.round((Date.now() - this.rooms[roomId].creationTime) / 1000 * 60) >= 30) {
+    //       delete this.rooms[roomId];
+    //     }
+    //   });
+    // }, this.CLEAN_UP_DURATION);
   }
 
   private deleteAllRoomParticipants(roomId: string) {
@@ -104,7 +105,7 @@ class FileSharerServer {
       console.log("User connected: ", socket.id);
       if (this.roomCleanerInterval === null) {
         // The loop could've been halted due to absence of any rooms!
-        this.initateRoomCleanUpLoop();
+        // this.initateRoomCleanUpLoop();
       }
       socket.on('create-room', (data) => {
         console.log('Create Room: ', data);
