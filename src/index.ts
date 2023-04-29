@@ -1,29 +1,16 @@
 import { Server, Socket } from "socket.io";
+import { FilePacket, AcknowledgePacketType } from "./types";
 
-const express = require("express");
+import express from "express";
 const app = express();
-const cors = require('cors');
-const http = require("http");
-const path = require("path");
+import cors from 'cors';
+import http from "http";
+import path from "path";
 
 app.use(cors());
 app.use(express.urlencoded());
 app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
-
-interface filePacket {
-  fileChunkArrayBuffer: ArrayBuffer,
-  packetId: number,
-  isProcessing: boolean,
-  totalPackets: number,
-  chunkSize: number,
-  fileName: string,
-  fileType: string,
-  uniqueID: string,
-  percentageCompleted: number,
-  roomId: string
-};
-
 
 class FileSharerServer {
 
@@ -33,7 +20,7 @@ class FileSharerServer {
 
   rooms: { [props: string]: { usersList: Socket[]; fileInfo: { name: string; type: string; size: number }; creationTime: number }; };
 
-  dataCacheQueue: { [props: string]: filePacket };
+  dataCacheQueue: { [props: string]: { [packetId: string]: FilePacket } };
 
   private readonly ALLOWED_CONCURRENT_CONNECTIONS = 3;
 
@@ -44,6 +31,8 @@ class FileSharerServer {
   roomCreators: { [props: string]: string };
 
   roomCleanerInterval: NodeJS.Timer | null;
+
+  setTimeoutVar: null | NodeJS.Timer = null;
 
   constructor() {
     this.rooms = {};
@@ -59,26 +48,6 @@ class FileSharerServer {
     this.roomCleanerInterval = null;
     this.registerRoutes();
     this.connectSocket();
-    // this.initateRoomCleanUpLoop();
-  }
-
-  private initateRoomCleanUpLoop() { // Ideally, this shouldn't be used!
-    return;
-    // console.log("Initiating the room cleanUp loop!");
-    // this.roomCleanerInterval = setInterval(() => {
-    //   console.log("Executed the room cleanUp loop!");
-    //   const roomIds = Object.keys(this.rooms);
-    //   if (roomIds.length === 0) {
-    //     clearInterval((this.roomCleanerInterval as NodeJS.Timer));
-    //     console.log("Halting the room cleanUp loop due to absence of any room!");
-    //     this.roomCleanerInterval = null;
-    //   }
-    //   roomIds.forEach((roomId: string) => {
-    //     if (Math.round((Date.now() - this.rooms[roomId].creationTime) / 1000 * 60) >= 30) {
-    //       delete this.rooms[roomId];
-    //     }
-    //   });
-    // }, this.CLEAN_UP_DURATION);
   }
 
   private deleteAllRoomParticipants(roomId: string) {
@@ -86,6 +55,31 @@ class FileSharerServer {
       socket.leave(roomId);
     });
     delete this.rooms[roomId];
+  }
+
+  private sendPendingPackets({ socket, uuid }: { socket: Socket; uuid?: string }) {
+    if (uuid && this.dataCacheQueue[uuid]) {
+      console.log("Sending pending packages...");
+      Object.keys(this.dataCacheQueue[uuid]).forEach((packetId) => {
+        const packet = this.dataCacheQueue[uuid][packetId];
+        return socket.to(packet.roomId).emit("recieveFile", packet);
+      });
+      delete this.dataCacheQueue[uuid];
+    }
+  }
+
+  private storePacketsTemporarily(uuid: string, packet: FilePacket) {
+    if (uuid.startsWith("guest")) {
+      return;
+    }
+    this.dataCacheQueue[uuid] = this.dataCacheQueue[uuid] || {};
+    this.dataCacheQueue[uuid][`${packet.roomId}|${packet.packetId}`] = packet;
+    if (this.setTimeoutVar) {
+      clearTimeout(this.setTimeoutVar);
+    }
+    this.setTimeoutVar = setTimeout(() => { // Delete the pending packages after 1Min of inActivity!
+      delete this.dataCacheQueue[uuid];
+    }, 1000 * 60 * 60);
   }
 
   registerRoutes() {
@@ -101,20 +95,22 @@ class FileSharerServer {
   }
 
   connectSocket() {
-    this.socketIO.on("connect", (socket) => {
-      console.log("User connected: ", socket.id);
-      if (this.roomCleanerInterval === null) {
-        // The loop could've been halted due to absence of any rooms!
-        // this.initateRoomCleanUpLoop();
-      }
-      socket.on('create-room', (data) => {
+    this.socketIO.on("connect", (socket: Socket) => {
+      console.log("User connected: ", socket.id, " ", socket.handshake.query);
+
+      const { uuid } = socket.handshake.query || { uuid: "guest" + Math.round(Math.random() * 1000) };
+
+      this.sendPendingPackets({ socket, uuid: (uuid as string) });
+
+      socket.on('create-room', (data: { fileInfo: { name: string; type: string; size: number; }, id: string }) => {
         console.log('Create Room: ', data);
         if (!data.id) return console.log("Something went wrong while creating room!");
         this.roomCreators[socket.id] = data.id;
         this.rooms[data.id] = { usersList: [], fileInfo: { ...data.fileInfo }, creationTime: Date.now() };
         socket.join(data.id);
       });
-      socket.on('join-room', (data) => {
+
+      socket.on('join-room', (data: { id: string; userId: string }) => {
         console.log("Join Room: ", data);
         if (!data.id) return console.log("Something went wrong while joining a room!");
         if (!this.rooms[data.id]) {
@@ -127,24 +123,27 @@ class FileSharerServer {
         socket.join(data.id);
         socket.to(data.id).emit(data.id + ":users", { userCount: this.rooms[data.id].usersList.length, userId: data.userId });
       });
-      socket.on("sendFile", (fileData: filePacket) => { // send this too { roomId };
-        // console.log("Send File: ", fileData);
-        // this.dataCacheQueue[this.internalUtil.getKey(socket.id, fileData.roomId, fileData.packetId)] = fileData;
-        socket.to(fileData.roomId).emit("recieveFile", fileData);
+
+      socket.on("sendFile", (fileData: FilePacket) => {
+        this.storePacketsTemporarily((uuid as string), fileData); // FIXME: add explicit type instead of `string`!
+        socket.to(fileData.roomId).emit("recieveFile", { ...fileData, senderId: uuid });
       });
-      socket.on('acknowledge', (data) => {
+
+      socket.on('acknowledge', (data: AcknowledgePacketType) => {
         console.log('acknowledged: ', data);
         const { roomId } = data;
-        delete data.roomId;
-        // delete this.dataCacheQueue[this.internalUtil.getKey(socket.id, data.roomId, data.packetId)]; // delete the acknowledged campaign from the queue;
+        delete (data as any).roomId;
+        delete this.dataCacheQueue[data.senderId][`${roomId}|${data.packetId}`]; // delete the acknowledged packet from the queue;
         socket.to(roomId).emit("packet-acknowledged", data);
       });
-      socket.on('deleteRoom', ({ roomId }) => {
+
+      socket.on('deleteRoom', ({ roomId }: { roomId: string }) => {
         // In this case, the user deliberately clicked on the cancel button;
         console.log("Deleting room: ", roomId);
         socket.to(roomId).emit("roomInvalidated", true);
         this.deleteAllRoomParticipants(roomId);
       });
+
       socket.on("disconnect", () => {
         if (this.roomCreators[socket.id]) {
           // In this case, the user might have exited the page;
@@ -168,4 +167,3 @@ class FileSharerServer {
 }
 
 new FileSharerServer().run();
-
