@@ -8,10 +8,10 @@ export default class SocketManager extends SocketRoomManager {
   private socketIO: Server | null = null;
 
   /**
-   * This object is supposed to only store the sessionId as its key and
-   * the roomId as the value.
+   * This object is supposed to only store the sessionId (socket.id) as its key and
+   * the an object which would consist of `roomId` & `userId` as the value.
    */
-  private globalUserSocketStore = new Proxy(({} as GenericObject), {
+  private globalUserSocketStore = new Proxy(({} as { [socketId: string | symbol]: { roomId: string, userId: string } }), {
     get: (target, key) => {
       return target[key];
     },
@@ -20,10 +20,10 @@ export default class SocketManager extends SocketRoomManager {
       return true;
     },
     deleteProperty: (target, key) => { // key here is socketId;
-      const roomId = target[key];
+      const { roomId, userId } = target[key];
       if (roomId) {
         this.deleteRoomMember(roomId, (key as string));
-        this.socketIO?.to(roomId).emit(roomId + ":users", { userCount: this.getRoomMembers(roomId).length });
+        this.socketIO?.to(roomId).emit(roomId + ":users", { userCount: this.getRoomMembers(roomId).length, userId, userLeft: true  });
       } else {
         logger.warn("RoomId wasn't available while deleting the socketId from global Store!");
       }
@@ -44,9 +44,9 @@ export default class SocketManager extends SocketRoomManager {
 
     logger.info("User connected: ", socket.id);
 
-    this.globalUserSocketStore[socket.id] = "";
-
     const { uuid } = Array.isArray(socket.handshake.query) ? socket.handshake.query[0] : socket.handshake.query; // This should be created everytime!
+
+    this.globalUserSocketStore[socket.id] = { roomId: "", userId: uuid };
 
     socket.on('create-room', (data: { fileInfo: { name: string; type: string; size: number; }, id: string }) => {
       if (!data.id) { // `data.id` is the roomId;
@@ -54,7 +54,7 @@ export default class SocketManager extends SocketRoomManager {
       }
       logger.info("Room creation request received! ", data);
       this.createRoom(socket, data.id, { fileInfo: data.fileInfo, creator: socket.id });
-      this.globalUserSocketStore[socket.id] = data.id;
+      this.globalUserSocketStore[socket.id].roomId = data.id;
     });
 
     socket.on('join-room', (data: { id: string; userId: string }) => {
@@ -69,7 +69,8 @@ export default class SocketManager extends SocketRoomManager {
         socket.emit("error", { message: "Couldn't join the session!" });
         return logger.error('Failed to join the room!');
       }
-      this.globalUserSocketStore[socket.id] = data.id;
+      this.globalUserSocketStore[socket.id].roomId = data.id;
+      this.globalUserSocketStore[socket.id].userId = data.userId; // This might be redundant since we're sending the UUID while initializing the socket session anywaY - check on FE as well!
       // increase `currentMembers` count by `1` since one more user now joined the room!
       socket.to(data.id).emit(data.id + ":users", { userCount: currentMembers + 1, userId: data.userId });
     });
