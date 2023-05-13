@@ -8,11 +8,8 @@ class SocketRoomManager {
     constructor() {
         this.rooms = {};
         this.roomCreators = new Map();
-        this.getRoomMembers = (roomId) => {
-            return Object.values(this.rooms[roomId].members);
-        };
         this.deleteRoomMember = (roomId, socketId) => {
-            if (this.rooms[roomId].members[socketId]) {
+            if (this.rooms[roomId] && this.rooms[roomId].members[socketId]) {
                 delete this.rooms[roomId].members[socketId];
                 return true;
             }
@@ -20,12 +17,12 @@ class SocketRoomManager {
                 return false;
             }
         };
-    }
-    getRoomInfo(roomId) {
-        if (!this.rooms[roomId] || this.rooms[roomId].locked) {
-            return { invalid: false };
-        }
-        return { fileInfo: this.rooms[roomId].fileInfo, isLocked: this.rooms[roomId].locked };
+        this.getRoomMembers = (roomId) => {
+            if (!this.rooms[roomId]) {
+                return [];
+            }
+            return Object.values(this.rooms[roomId].members);
+        };
     }
     /**
      * This returns if an already existing user is trying to join in again.
@@ -41,19 +38,33 @@ class SocketRoomManager {
             }
         });
         if (isUserAlreadyInsideTheRoom) {
-            logger_1.default.info("A user is trying to rejoin whilst still being inside the room!");
+            logger_1.default.warn("A user is trying to rejoin whilst still being inside the room!");
         }
         return isUserAlreadyInsideTheRoom;
     }
+    getRoomInfo(roomId) {
+        if (!this.rooms[roomId] || this.rooms[roomId].locked) {
+            return { invalid: false };
+        }
+        return { fileInfo: this.rooms[roomId].fileInfo, isLocked: this.rooms[roomId].locked };
+    }
     createRoom(socket, roomId, { creator, fileInfo }) {
+        if (this.rooms[roomId]) {
+            return logger_1.default.warn("A user trying to create the room with the same UUID!");
+        }
         this.rooms[roomId] = { fileInfo: fileInfo, members: {}, locked: false };
         this.roomCreators.set(creator, roomId);
         socket.join(roomId);
     }
     joinRoom(socket, roomId) {
         if (!this.rooms[roomId] || this.isRejoinAttempt(socket, roomId) || this.rooms[roomId].locked) {
-            if (this.rooms[roomId].locked) {
-                logger_1.default.warn("User's trying to join a file transfer session in progress...");
+            try {
+                if (this.rooms[roomId].locked) {
+                    logger_1.default.warn("User's trying to join a file transfer session in progress...");
+                }
+            }
+            catch (e) {
+                logger_1.default.error("~~ ROOM DOENS'T EXIST IT SEEMS ", this.rooms[roomId], " ", roomId);
             }
             return false;
         }
@@ -62,13 +73,13 @@ class SocketRoomManager {
         return true;
     }
     lockRoom(roomId) {
+        if (this.rooms[roomId].locked) {
+            return;
+        }
         this.rooms[roomId].locked = true;
     }
-    getMemberCountForRoom(roomId) {
-        if (!this.rooms[roomId]) {
-            return 0;
-        }
-        return Object.keys(this.rooms[roomId].members).length;
+    unlockRoom(roomId) {
+        this.rooms[roomId].locked = false;
     }
     purgeRoom(roomId) {
         logger_1.default.warn("purging room!");

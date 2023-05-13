@@ -1,6 +1,6 @@
 import { Socket } from "socket.io";
 
-export type GenericObject = { [props: string]: any };
+export type GenericObject = { [props: string | number | symbol]: any };
 
 export interface FilePacket {
   fileChunkArrayBuffer: ArrayBuffer;

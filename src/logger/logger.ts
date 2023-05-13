@@ -9,7 +9,6 @@ const prefix = "fileSharer";
 const logWrapper =
   (logger: (prefix: string, message: string, ...args: any) => void) =>
   (message: string, ...args: any) => {
-    args.push("  -  logged at: " + (new Date()).toUTCString());
     return logger(prefix, message, ...args);
 };
 

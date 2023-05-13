@@ -8,7 +8,6 @@ npmlog_1.default.level = "verbose";
 npmlog_1.default.enableColor();
 const prefix = "fileSharer";
 const logWrapper = (logger) => (message, ...args) => {
-    args.push("    -   logged at: " + (new Date()).toUTCString());
     return logger(prefix, message, ...args);
 };
 exports.default = {
