@@ -25,7 +25,7 @@ export default class SocketManager extends SocketRoomManager {
         this.deleteRoomMember(roomId, (key as string));
         this.socketIO?.to(roomId).emit(roomId + ":users", { userCount: this.getRoomMembers(roomId).length, userId, userLeft: true  });
       } else {
-        logger.warn("RoomId wasn't available while deleting the socketId from global Store!");
+        logger.warn("RoomId wasn't available while deleting the socketId from global Store! ", target[key], " ", key);
       }
       delete target[key];
       return true;
