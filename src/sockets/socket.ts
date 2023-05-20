@@ -1,6 +1,6 @@
 import { Server, Socket } from "socket.io";
 import SocketRoomManager from "./utils/roomManager";
-import { FilePacket, AcknowledgePacketType, GenericObject } from "../types";
+import { FilePacket, AcknowledgePacketType } from "../types";
 import logger from "../logger/logger";
 
 export default class SocketManager extends SocketRoomManager {
@@ -82,11 +82,12 @@ export default class SocketManager extends SocketRoomManager {
       } else {
         this.lockRoom(fileData.roomId); // Doing this will ensure that no other user joins in between the transmission;
       }
+      logger.info("packet id received for data: { pId: '", fileData.packetId, "' }");
       socket.to(fileData.roomId).emit("recieveFile", { ...fileData, senderId: uuid });
     });
 
     socket.on('acknowledge', (data: AcknowledgePacketType) => {
-      // logger.info('Acknowledged packet details: ', " { pId: '", data.packetId, "' }");
+      logger.info('Acknowledged packet details: ', " { pId: '", data.packetId, "' }");
       socket.to(data.roomId).emit("packet-acknowledged", data);
     });
 
