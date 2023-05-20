@@ -82,12 +82,12 @@ export default class SocketManager extends SocketRoomManager {
       } else {
         this.lockRoom(fileData.roomId); // Doing this will ensure that no other user joins in between the transmission;
       }
-      logger.info("packet id received for data: { pId: '", fileData.packetId, "' }");
+      logger.info("packet id received for data: ", JSON.stringify({ pId: fileData.packetId, percentage: fileData.percentageCompleted }));
       socket.to(fileData.roomId).emit("recieveFile", { ...fileData, senderId: uuid });
     });
 
     socket.on('acknowledge', (data: AcknowledgePacketType) => {
-      logger.info('Acknowledged packet details: ', " { pId: '", data.packetId, "' }");
+      logger.info('Acknowledged packet details: ', JSON.stringify({ pId: data.packetId, percentage: data.percentage }));
       socket.to(data.roomId).emit("packet-acknowledged", data);
     });
 
