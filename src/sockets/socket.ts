@@ -77,6 +77,7 @@ export default class SocketManager extends SocketRoomManager {
 
     socket.on("sendFile", (fileData: FilePacket) => {
       if (!fileData.isProcessing) {
+        logger.info("File transfer is complete!");
         // It means the processing is done and no more file packet is pending now!
         this.unlockRoom(fileData.roomId);
       } else {
@@ -102,6 +103,7 @@ export default class SocketManager extends SocketRoomManager {
 
     socket.on("disconnect", () => {
       this.disconnectionMonitor(socket.id, (roomId) => {
+        logger.info("Room Id: ", roomId, "'s creator left!");
         if (this.getRoomInfo(roomId).isLocked) {
           logger.warn("The room creator left abruptly!");
           /* purge the room only in case where the room is locked (which signifies that a file transmission session is going on)

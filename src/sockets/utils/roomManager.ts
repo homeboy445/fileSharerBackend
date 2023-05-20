@@ -79,10 +79,12 @@ export default class SocketRoomManager {
         if (this.rooms[roomId].locked) {
             return;
         }
+        logger.info("locked the room: ", roomId);
         this.rooms[roomId].locked = true;
     }
 
     protected unlockRoom(roomId: string) {
+        logger.info("unlocked the room: ", roomId);
         this.rooms[roomId].locked = false;
     }
   

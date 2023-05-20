@@ -80,10 +80,11 @@ class SocketManager extends roomManager_1.default {
                 else {
                     this.lockRoom(fileData.roomId); // Doing this will ensure that no other user joins in between the transmission;
                 }
+                logger_1.default.info("packet id received for data: ", JSON.stringify({ pId: fileData.packetId, percentage: fileData.percentageCompleted }));
                 socket.to(fileData.roomId).emit("recieveFile", Object.assign(Object.assign({}, fileData), { senderId: uuid }));
             });
             socket.on('acknowledge', (data) => {
-                // logger.info('Acknowledged packet details: ', " { pId: '", data.packetId, "' }");
+                logger_1.default.info('Acknowledged packet details: ', JSON.stringify({ pId: data.packetId, percentage: data.percentage }));
                 socket.to(data.roomId).emit("packet-acknowledged", data);
             });
             socket.on('deleteRoom', ({ roomId }) => {
