@@ -46,13 +46,14 @@ class SocketRoomManager {
         if (!this.rooms[roomId] || this.rooms[roomId].locked) {
             return { invalid: false };
         }
-        return { fileInfo: this.rooms[roomId].fileInfo, isLocked: this.rooms[roomId].locked };
+        return { filesInfo: this.rooms[roomId].filesInfo, isLocked: this.rooms[roomId].locked };
     }
-    createRoom(socket, roomId, { creator, fileInfo }) {
+    createRoom(socket, roomId, { creator, filesInfo }) {
         if (this.rooms[roomId]) {
             return logger_1.default.warn("A user trying to create the room with the same UUID!");
         }
-        this.rooms[roomId] = { fileInfo: fileInfo, members: {}, locked: false };
+        logger_1.default.info("create room: ", filesInfo);
+        this.rooms[roomId] = { filesInfo: filesInfo, members: {}, locked: false };
         this.roomCreators.set(creator, roomId);
         socket.join(roomId);
     }
@@ -76,9 +77,11 @@ class SocketRoomManager {
         if (this.rooms[roomId].locked) {
             return;
         }
+        logger_1.default.info("locked the room: ", roomId);
         this.rooms[roomId].locked = true;
     }
     unlockRoom(roomId) {
+        logger_1.default.info("unlocked the room: ", roomId);
         this.rooms[roomId].locked = false;
     }
     purgeRoom(roomId) {

@@ -1,6 +1,6 @@
 import { Server, Socket } from "socket.io";
 import SocketRoomManager from "./utils/roomManager";
-import { FilePacket, AcknowledgePacketType } from "../types";
+import { FilePacket, AcknowledgePacketType, FileInfo } from "../types";
 import logger from "../logger/logger";
 
 export default class SocketManager extends SocketRoomManager {
@@ -48,12 +48,12 @@ export default class SocketManager extends SocketRoomManager {
 
     this.globalUserSocketStore[socket.id] = { roomId: "", userId: uuid };
 
-    socket.on('create-room', (data: { fileInfo: { name: string; type: string; size: number; }, id: string }) => {
+    socket.on('create-room', (data: { filesInfo: FileInfo[], id: string }) => {
       if (!data.id) { // `data.id` is the roomId;
         return logger.error("Room Id wasn't provided while creating room!");
       }
       logger.info("Room creation request received! ", data);
-      this.createRoom(socket, data.id, { fileInfo: data.fileInfo, creator: socket.id });
+      this.createRoom(socket, data.id, { filesInfo: data.filesInfo, creator: socket.id });
       this.globalUserSocketStore[socket.id].roomId = data.id;
     });
 

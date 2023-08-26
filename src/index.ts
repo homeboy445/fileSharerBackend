@@ -29,6 +29,19 @@ class FileSharerServer extends SocketManager {
       }
     }));
     this.registerRoutes();
+    this.registerMiddleWares();
+  }
+
+  registerMiddleWares() {
+    app.use((err: Record<any, any>, req: any, res: any) => {
+        logger.error(JSON.stringify(err));
+        // Set an appropriate status code and send an error response
+        res.status(err.status || 500).json({
+            error: {
+                message: 'Internal Server Error'
+            }
+        });
+    });
   }
 
   registerRoutes() {
@@ -39,7 +52,7 @@ class FileSharerServer extends SocketManager {
     app.post("/isValidRoom", (req: any, res: any) => {
       const { roomId } = req.body;
       const roomInfo = this.getRoomInfo(roomId);
-      res.json({ status: !roomInfo.invalid, fileInfo: roomInfo?.fileInfo ?? {} });
+      res.json({ status: !roomInfo.invalid, filesInfo: roomInfo.filesInfo ?? {} });
     });
   }
 

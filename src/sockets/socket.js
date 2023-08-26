@@ -29,7 +29,7 @@ class SocketManager extends roomManager_1.default {
                     (_a = this.socketIO) === null || _a === void 0 ? void 0 : _a.to(roomId).emit(roomId + ":users", { userCount: this.getRoomMembers(roomId).length, userId, userLeft: true });
                 }
                 else {
-                    logger_1.default.warn("RoomId wasn't available while deleting the socketId from global Store!");
+                    logger_1.default.warn("RoomId wasn't available while deleting the socketId from global Store! ", target[key], " ", key);
                 }
                 delete target[key];
                 return true;
@@ -52,7 +52,7 @@ class SocketManager extends roomManager_1.default {
                     return logger_1.default.error("Room Id wasn't provided while creating room!");
                 }
                 logger_1.default.info("Room creation request received! ", data);
-                this.createRoom(socket, data.id, { fileInfo: data.fileInfo, creator: socket.id });
+                this.createRoom(socket, data.id, { filesInfo: data.filesInfo, creator: socket.id });
                 this.globalUserSocketStore[socket.id].roomId = data.id;
             });
             socket.on('join-room', (data) => {
@@ -74,6 +74,7 @@ class SocketManager extends roomManager_1.default {
             });
             socket.on("sendFile", (fileData) => {
                 if (!fileData.isProcessing) {
+                    logger_1.default.info("File transfer is complete!");
                     // It means the processing is done and no more file packet is pending now!
                     this.unlockRoom(fileData.roomId);
                 }
@@ -96,6 +97,7 @@ class SocketManager extends roomManager_1.default {
             // TODO: Write a function roomAudit - which would delete the unused rooms and free up memory!
             socket.on("disconnect", () => {
                 this.disconnectionMonitor(socket.id, (roomId) => {
+                    logger_1.default.info("Room Id: ", roomId, "'s creator left!");
                     if (this.getRoomInfo(roomId).isLocked) {
                         logger_1.default.warn("The room creator left abruptly!");
                         /* purge the room only in case where the room is locked (which signifies that a file transmission session is going on)

@@ -43,18 +43,19 @@ export default class SocketRoomManager {
         return Object.values(this.rooms[roomId].members);
     };
 
-    protected getRoomInfo(roomId: string): { invalid?: boolean, fileInfo?: FileInfo, isLocked?: boolean } {
+    protected getRoomInfo(roomId: string): { invalid?: boolean, filesInfo?: FileInfo[], isLocked?: boolean } {
         if (!this.rooms[roomId] || this.rooms[roomId].locked) {
             return { invalid: false };
         }
-        return { fileInfo: this.rooms[roomId].fileInfo, isLocked: this.rooms[roomId].locked };
+        return { filesInfo: this.rooms[roomId].filesInfo, isLocked: this.rooms[roomId].locked };
     }
   
-    protected createRoom(socket: Socket, roomId: string, { creator, fileInfo }: { creator: string, fileInfo: FileInfo }): void {
+    protected createRoom(socket: Socket, roomId: string, { creator, filesInfo }: { creator: string, filesInfo: FileInfo[] }): void {
       if (this.rooms[roomId]) {
         return logger.warn("A user trying to create the room with the same UUID!");
       }
-      this.rooms[roomId] = { fileInfo: fileInfo, members: {}, locked: false };
+      logger.info("create room: ", filesInfo);
+      this.rooms[roomId] = { filesInfo: filesInfo, members: {}, locked: false };
       this.roomCreators.set(creator, roomId);
       socket.join(roomId);
     }

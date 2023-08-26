@@ -29,4 +29,4 @@ export interface FileInfo {
   size: number;
 }
 
-export type roomInfo = { members: { [socketId: string]: Socket }, fileInfo: FileInfo, locked: boolean };
+export type roomInfo = { members: { [socketId: string]: Socket }, filesInfo: FileInfo[], locked: boolean };
