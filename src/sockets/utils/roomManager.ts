@@ -54,7 +54,7 @@ export default class SocketRoomManager {
       if (this.rooms[roomId]) {
         return logger.warn("A user trying to create the room with the same UUID!");
       }
-      logger.info("create room: ", filesInfo);
+      logger.info("create room!");
       this.rooms[roomId] = { filesInfo: filesInfo, members: {}, locked: false };
       this.roomCreators.set(creator, roomId);
       socket.join(roomId);
@@ -67,7 +67,7 @@ export default class SocketRoomManager {
                 logger.warn("User's trying to join a file transfer session in progress...");
             }
         } catch(e) {
-            logger.error("~~ ROOM DOENS'T EXIST IT SEEMS ", this.rooms[roomId], " ", roomId);
+            logger.error("~~ ROOM DOESN'T EXIST IT SEEMS!");
         }
         return false;
       }
@@ -76,19 +76,30 @@ export default class SocketRoomManager {
       return true;
     }
 
+    protected isRoomLocked(roomId: string): boolean {
+        return !!this.rooms[roomId];
+    }
+
     protected lockRoom(roomId: string) {
         if (this.rooms[roomId].locked) {
             return;
         }
-        logger.info("locked the room: ", roomId);
         this.rooms[roomId].locked = true;
     }
 
     protected unlockRoom(roomId: string) {
-        logger.info("unlocked the room: ", roomId);
+        if (!this.rooms[roomId].locked) {
+            return;
+        }
         this.rooms[roomId].locked = false;
     }
   
+    /**
+     * This will delete the room from cache and also would manually remove every connected socket
+     * to the room.
+     * Note: Make sure that room's purpose is fullfilled before its being purged.
+     * @param roomId string
+     */
     protected purgeRoom(roomId: string): void {
       logger.warn("purging room!");
       this.getRoomMembers(roomId).forEach((socket) => {
@@ -105,8 +116,8 @@ export default class SocketRoomManager {
      * @param callback - Function
      */
     disconnectionMonitor(userId: string, callback: (roomId: string) => void): void {
-        let roomId;
-        if ((roomId = this.roomCreators.get(userId))) {
+        let roomId = this.roomCreators.get(userId);
+        if (roomId) {
             callback(roomId);
             this.roomCreators.delete(userId);
         }

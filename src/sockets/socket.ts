@@ -1,6 +1,6 @@
 import { Server, Socket } from "socket.io";
 import SocketRoomManager from "./utils/roomManager";
-import { FilePacket, AcknowledgePacketType, FileInfo } from "../types";
+import { FilePacket, AcknowledgePacketType, FileInfo, GenericObject } from "../types";
 import logger from "../logger/logger";
 
 export default class SocketManager extends SocketRoomManager {
@@ -19,13 +19,11 @@ export default class SocketManager extends SocketRoomManager {
       target[key] = value;
       return true;
     },
-    deleteProperty: (target, key) => { // key here is socketId;
+    deleteProperty: (target, key: string) => { // key here is socketId;
       const { roomId, userId } = target[key];
       if (roomId) {
-        this.deleteRoomMember(roomId, (key as string));
+        this.deleteRoomMember(roomId, key);
         this.socketIO?.to(roomId).emit(roomId + ":users", { userCount: this.getRoomMembers(roomId).length, userId, userLeft: true  });
-      } else {
-        logger.warn("RoomId wasn't available while deleting the socketId from global Store! ", target[key], " ", key);
       }
       delete target[key];
       return true;
@@ -52,7 +50,7 @@ export default class SocketManager extends SocketRoomManager {
       if (!data.id) { // `data.id` is the roomId;
         return logger.error("Room Id wasn't provided while creating room!");
       }
-      logger.info("Room creation request received! ", data);
+      logger.info("Room creation request received!");
       this.createRoom(socket, data.id, { filesInfo: data.filesInfo, creator: socket.id });
       this.globalUserSocketStore[socket.id].roomId = data.id;
     });
@@ -83,19 +81,19 @@ export default class SocketManager extends SocketRoomManager {
       } else {
         this.lockRoom(fileData.roomId); // Doing this will ensure that no other user joins in between the transmission;
       }
-      logger.info("packet id received for data: ", JSON.stringify({ pId: fileData.packetId, percentage: fileData.percentageCompleted }));
+      // logger.info("packet id received for data: ", JSON.stringify({ pId: fileData.packetId, percentage: fileData.percentageCompleted }));
       socket.to(fileData.roomId).emit("recieveFile", { ...fileData, senderId: uuid });
     });
 
     socket.on('acknowledge', (data: AcknowledgePacketType) => {
-      logger.info('Acknowledged packet details: ', JSON.stringify({ pId: data.packetId, percentage: data.percentage }));
+      // logger.info('Acknowledged packet details: ', JSON.stringify({ pId: data.packetId, percentage: data.percentage }));
       socket.to(data.roomId).emit("packet-acknowledged", data);
     });
 
-    socket.on('deleteRoom', ({ roomId }: { roomId: string }) => {
+    socket.on('deleteRoom', ({ roomId, info }: { roomId: string, info: GenericObject }) => {
       // In this case, the user deliberately clicked on the cancel button;
-      logger.warn("Deleting room: ", roomId);
-      // socket.to(roomId).emit("roomInvalidated", { message: "File transfer complete!" });
+      logger.warn("Deleting room on request!");
+      socket.to(roomId).emit("roomInvalidated", info || {});
       this.purgeRoom(roomId);
     });
 
@@ -103,15 +101,14 @@ export default class SocketManager extends SocketRoomManager {
 
     socket.on("disconnect", () => {
       this.disconnectionMonitor(socket.id, (roomId) => {
-        logger.info("Room Id: ", roomId, "'s creator left!");
-        if (this.getRoomInfo(roomId).isLocked) {
+        if (this.isRoomLocked(roomId)) {
           logger.warn("The room creator left abruptly!");
-          /* purge the room only in case where the room is locked (which signifies that a file transmission session is going on)
+          /* purge the room only in case where the room is locked (which signifies that a file transmission session was going on)
           and hence, invalidate the room and let all the connected users know! */
-          this.purgeRoom(roomId);
           socket.to(roomId).emit("roomInvalidated", { message: "Sender aborted the file Transfer!" });
+          this.purgeRoom(roomId);
         } else {
-          logger.info("The room creator left but the transfer session is complete! (id:", socket.id, ")");
+          logger.info("The room creator left but the transfer session is complete!");
         }
       });
       delete this.globalUserSocketStore[socket.id];
