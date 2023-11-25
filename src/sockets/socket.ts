@@ -50,7 +50,7 @@ export default class SocketManager extends SocketRoomManager {
       if (!data.id) { // `data.id` is the roomId;
         return logger.error("Room Id wasn't provided while creating room!");
       }
-      logger.info("Room creation request received!");
+      logger.info("Room creation request received! ", socket.id);
       this.createRoom(socket, data.id, { filesInfo: data.filesInfo, creator: socket.id });
       this.globalUserSocketStore[socket.id].roomId = data.id;
     });
