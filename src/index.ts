@@ -58,7 +58,7 @@ class FileSharerServer extends SocketManager {
 
   run() {
     this.httpServer.listen(this.PORT, () => {
-      logger.info(`Server is running at PORT:`, this.PORT);
+      logger.info(`Server is running!`);
     });
   }
 }
