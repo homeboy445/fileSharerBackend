@@ -40,7 +40,7 @@ export default class SocketManager extends SocketRoomManager {
   private connectSocket() {
     this.socketIO?.on("connect", (socket: Socket) => {
 
-    logger.info("User connected: ", socket.id);
+    logger.info("User connected: ", socket.id, " <-> ", this.socketIO);
 
     const { uuid } = Array.isArray(socket.handshake.query) ? socket.handshake.query[0] : socket.handshake.query; // This should be created everytime!
 
@@ -99,7 +99,7 @@ export default class SocketManager extends SocketRoomManager {
 
     // TODO: Write a function roomAudit - which would delete the unused rooms and free up memory!
 
-    socket.on("disconnect", () => {
+    socket.on("disconnect", (reason) => {
       this.disconnectionMonitor(socket.id, (roomId) => {
         if (this.isRoomLocked(roomId)) {
           logger.warn("The room creator left abruptly!");
@@ -112,7 +112,7 @@ export default class SocketManager extends SocketRoomManager {
         }
       });
       delete this.globalUserSocketStore[socket.id];
-      logger.info("User disconnected: ", socket.id);
+      logger.info("User disconnected: ", socket.id, " REASON: ", reason);
     });
   });
   }
