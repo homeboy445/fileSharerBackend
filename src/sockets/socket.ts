@@ -40,9 +40,9 @@ export default class SocketManager extends SocketRoomManager {
   private connectSocket() {
     this.socketIO?.on("connect", (socket: Socket) => {
 
-    logger.info("User connected: ", socket.id);
-
     const { uuid } = Array.isArray(socket.handshake.query) ? socket.handshake.query[0] : socket.handshake.query; // This should be created everytime!
+
+    logger.info("User connected: ", socket.id, " ", uuid);
 
     this.globalUserSocketStore[socket.id] = { roomId: "", userId: uuid };
 
