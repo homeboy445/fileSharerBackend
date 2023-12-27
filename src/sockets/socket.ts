@@ -30,7 +30,7 @@ export default class SocketManager extends SocketRoomManager {
     }
   })
 
-  private readonly ALLOWED_CONCURRENT_CONNECTIONS_PER_SESSION = 3;
+  private readonly ALLOWED_CONCURRENT_CONNECTIONS_PER_SESSION = 1;
 
   protected initialize(socketServer: Server) {
     this.socketIO = socketServer;
@@ -46,11 +46,16 @@ export default class SocketManager extends SocketRoomManager {
 
     this.globalUserSocketStore[socket.id] = { roomId: "", userId: uuid };
 
+    socket.on("send-signal", ({ signal, roomId }) => {
+      // logger.info("Received signal data! ", roomId);
+      socket.to(roomId).emit("receive-signal", { signalData: signal });
+    });
+
     socket.on('create-room', (data: { filesInfo: FileInfo[], id: string }) => {
       if (!data.id) { // `data.id` is the roomId;
         return logger.error("Room Id wasn't provided while creating room!");
       }
-      logger.info("Room creation request received! ", socket.id);
+      logger.info("Room creation request received! ", socket.id, " roomId: ", data.id);
       this.createRoom(socket, data.id, { filesInfo: data.filesInfo, creator: socket.id });
       this.globalUserSocketStore[socket.id].roomId = data.id;
     });
@@ -67,6 +72,7 @@ export default class SocketManager extends SocketRoomManager {
         socket.emit("error", { message: "Couldn't join the session!" });
         return logger.error('Failed to join the room!');
       }
+      logger.info("Room joining request received: ", data.id);
       this.globalUserSocketStore[socket.id].roomId = data.id;
       this.globalUserSocketStore[socket.id].userId = data.userId; // This might be redundant since we're sending the UUID while initializing the socket session anywaY - check on FE as well!
       // increase `currentMembers` count by `1` since one more user now joined the room!
@@ -95,6 +101,27 @@ export default class SocketManager extends SocketRoomManager {
       logger.warn("Deleting room on request!");
       socket.to(roomId).emit("roomInvalidated", info || {});
       this.purgeRoom(roomId);
+    });
+
+    socket.on("file-transfer-info-channel", (fileInfo: {
+      initiator: boolean;
+      isComplete: boolean;
+      name: string;
+      type: string;
+      size: number;
+      fileId: number;
+      roomId: string;
+    }) => {
+      logger.info("file transfer channel message received: ", fileInfo);
+      socket.to(fileInfo.roomId).emit("file-transfer-info-channel", fileInfo);
+    });
+
+    socket.on("file-received", (data) => {
+      if (!data.roomId) {
+        logger.warn("file-received: Room not found!")
+        return;
+      }
+      socket.to(data.roomId).emit("file-received", data);
     });
 
     // TODO: Write a function roomAudit - which would delete the unused rooms and free up memory!
