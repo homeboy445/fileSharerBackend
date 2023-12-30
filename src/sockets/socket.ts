@@ -116,6 +116,11 @@ export default class SocketManager extends SocketRoomManager {
       socket.to(fileInfo.roomId).emit("file-transfer-info-channel", fileInfo);
     });
 
+    socket.on("file-info-received", (data: { roomId: string, fileId: number }) => {
+      logger.info("file info acknowledgement received!");
+      this.socketIO?.to(data.roomId).emit("file-info-received-ack", data.fileId);
+    });
+
     socket.on("file-received", (data) => {
       if (!data.roomId) {
         logger.warn("file-received: Room not found!")
